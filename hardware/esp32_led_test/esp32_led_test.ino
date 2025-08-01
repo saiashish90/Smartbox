@@ -1,13 +1,12 @@
 //
-// ESP32 BLE Time Service Example
-// Creates a BLE service with custom UUID for time data transmission
-// Modified to send current time to phone via BLE
+// ESP32 BLE Static String Service Example
+// Creates a BLE service with custom UUID for static string data transmission
+// Modified to send static string to phone via BLE with auto-reconnection
 
 #include "BLEDevice.h"
 #include "BLEServer.h"
 #include "BLEUtils.h"
 #include "BLE2902.h"
-#include <time.h>
 
 // BLE Service and Characteristic UUIDs
 #define SERVICE_UUID        "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
@@ -18,13 +17,11 @@ BLECharacteristic* pCharacteristic = NULL;
 bool deviceConnected = false;
 bool oldDeviceConnected = false;
 
-// NTP Server to get time
-const char* ntpServer = "pool.ntp.org";
-const long gmtOffset_sec = 0; // No timezone offset
-const int daylightOffset_sec = 0; // No daylight saving
+// Static string to send
+const char* staticMessage = "Hello from SmartBox! This is a static message from ESP32.";
 
-unsigned long lastTimeSent = 0;
-const unsigned long timeSendInterval = 1000; // Send time every 1 second
+unsigned long lastMessageSent = 0;
+const unsigned long messageSendInterval = 2000; // Send message every 2 seconds
 
 // Callback class for BLE server events
 class MyServerCallbacks: public BLEServerCallbacks {
@@ -35,13 +32,13 @@ class MyServerCallbacks: public BLEServerCallbacks {
 
     void onDisconnect(BLEServer* pServer) {
       deviceConnected = false;
-      Serial.println("Device disconnected");
+      Serial.println("Device disconnected - will auto-reconnect");
     }
 };
 
 void setup() {
   Serial.begin(115200);
-  Serial.println("Starting BLE Time Service...");
+  Serial.println("Starting BLE Static String Service...");
 
   // Initialize BLE
   BLEDevice::init("SmartBox");
@@ -69,70 +66,58 @@ void setup() {
   pService->start();
 
   // Start advertising
+  startAdvertising();
+  
+  Serial.println("Waiting for a client connection to notify...");
+}
+
+void startAdvertising() {
   BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
   pAdvertising->addServiceUUID(SERVICE_UUID);
   pAdvertising->setScanResponse(true);  // Enable scan response for better discovery
   pAdvertising->setMinPreferred(0x06);  // Set minimum preferred interval
   pAdvertising->setMaxPreferred(0x12);  // Set maximum preferred interval
   BLEDevice::startAdvertising();
-  Serial.println("Waiting for a client connection to notify...");
-  
-  // Initialize time
-  configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
-  Serial.println("Waiting for NTP time sync...");
-  time_t now = 0;
-  while (now < 24 * 3600) {
-    delay(100);
-    now = time(nullptr);
-  }
-  Serial.println("Time synchronized!");
+  Serial.println("Started advertising");
 }
 
 void loop() {
-  // Handle BLE connection state
+  // Handle BLE connection state and auto-reconnection
   if (!deviceConnected && oldDeviceConnected) {
     delay(500); // give the bluetooth stack the chance to get things ready
-    pServer->startAdvertising(); // restart advertising
-    Serial.println("Start advertising");
+    startAdvertising(); // restart advertising
+    Serial.println("Restarted advertising for reconnection");
     oldDeviceConnected = deviceConnected;
   }
   
   // Connecting
   if (deviceConnected && !oldDeviceConnected) {
     oldDeviceConnected = deviceConnected;
+    Serial.println("Client connected successfully");
   }
 
   unsigned long currentMillis = millis();
   
-  // Send time data every second when connected
-  if (deviceConnected && currentMillis - lastTimeSent >= timeSendInterval) {
-    sendTimeData();
-    lastTimeSent = currentMillis;
+  // Send static message every interval when connected
+  if (deviceConnected && currentMillis - lastMessageSent >= messageSendInterval) {
+    sendStaticMessage();
+    lastMessageSent = currentMillis;
   }
   
   delay(20);
 }
 
-void sendTimeData() {
-  time_t now = time(nullptr);
-  struct tm timeinfo;
-  gmtime_r(&now, &timeinfo);
-  
-  // Create JSON formatted time data
-  char timeData[200];
-  snprintf(timeData, sizeof(timeData), 
-    "{\"type\":\"time\",\"timestamp\":%ld,\"hour\":%d,\"minute\":%d,\"second\":%d,\"day\":%d,\"month\":%d,\"year\":%d}",
-    now,
-    timeinfo.tm_hour,
-    timeinfo.tm_min, 
-    timeinfo.tm_sec,
-    timeinfo.tm_mday,
-    timeinfo.tm_mon + 1,
-    timeinfo.tm_year + 1900
+void sendStaticMessage() {
+  // Create JSON formatted static message
+  char messageData[300];
+  snprintf(messageData, sizeof(messageData), 
+    "{\"type\":\"static_message\",\"message\":\"%s\",\"timestamp\":%lu}",
+    staticMessage,
+    millis()
   );
   
   // Send via BLE
-  pCharacteristic->setValue((uint8_t*)timeData, strlen(timeData));
+  pCharacteristic->setValue((uint8_t*)messageData, strlen(messageData));
   pCharacteristic->notify();
-  Serial.println(timeData); // Also print to serial for debugging
+  Serial.println(messageData); // Also print to serial for debugging
 }

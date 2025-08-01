@@ -102,4 +102,28 @@ export const phoneScreenStyles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 10,
   },
+  connectButton: {
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    marginTop: 5,
+  },
+  connectButtonText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  disconnectButton: {
+    backgroundColor: '#FF4444',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    marginTop: 5,
+  },
+  disconnectButtonText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '600',
+  },
 }); 
