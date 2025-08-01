@@ -1,42 +1,30 @@
 import React from 'react';
-import { ActivityIndicator, FlatList, Text, TouchableOpacity, View } from 'react-native';
+import { FlatList, Text, TouchableOpacity, View } from 'react-native';
 import { useBluetoothDevices } from '../hooks/useBluetoothDevices';
 import { useBluetoothPermission } from '../hooks/useBluetoothPermission';
 import { phoneScreenStyles } from '../styles/phoneScreenStyles';
 
 export default function BluetoothScanner() {
   const { hasPermission, requestBluetoothPermissions } = useBluetoothPermission();
-  const { devices, isScanning, error, startScan, handleDevicePress, connectedDevice } = useBluetoothDevices(hasPermission);
-
-  const handleRetry = () => {
-    startScan();
-  };
-
-  // Check if any device is connected
-  const connectedDeviceInfo = devices.find(device => device.isConnected);
+  const { devices, error, isScanning, refreshDevices } = useBluetoothDevices(hasPermission);
 
   const renderDeviceItem = ({ item }: { item: any }) => {
     const getStatusText = () => {
-      if (item.isConnecting) return 'Connecting...';
-      if (item.isConnected) return 'Connected';
-      return 'Tap to connect';
+      if (item.isPaired) return 'Paired';
+      return 'Available';
     };
 
     const getStatusColor = () => {
-      if (item.isConnecting) return '#FFA500'; // Orange
-      if (item.isConnected) return '#4CAF50'; // Green
+      if (item.isPaired) return '#4CAF50'; // Green
       return '#666'; // Gray
     };
 
     return (
-      <TouchableOpacity 
+      <View 
         style={[
           phoneScreenStyles.deviceItem,
-          item.isConnected && phoneScreenStyles.connectedDevice,
-          item.isConnecting && phoneScreenStyles.connectingDevice
+          item.isPaired && phoneScreenStyles.connectedDevice
         ]}
-        onPress={() => handleDevicePress(item.id)}
-        disabled={item.isConnecting}
       >
         <View style={phoneScreenStyles.deviceInfo}>
           <Text style={phoneScreenStyles.deviceName}>
@@ -48,42 +36,20 @@ export default function BluetoothScanner() {
           )}
         </View>
         <View style={phoneScreenStyles.deviceStatus}>
-          {item.isConnecting && (
-            <ActivityIndicator size="small" color="#FFA500" style={phoneScreenStyles.loadingIndicator} />
-          )}
           <Text style={[phoneScreenStyles.statusText, { color: getStatusColor() }]}>
             {getStatusText()}
           </Text>
         </View>
-      </TouchableOpacity>
-    );
-  };
-
-  // If a device is connected, show only the pill
-  if (connectedDeviceInfo) {
-    return (
-      <View style={{ flex: 1 }}>
-        <TouchableOpacity 
-          style={phoneScreenStyles.connectedPill}
-          onPress={() => handleDevicePress(connectedDeviceInfo.id)}
-        >
-          <Text style={phoneScreenStyles.pillText}>
-            {connectedDeviceInfo.name || 'Connected Device'}
-          </Text>
-          <Text style={phoneScreenStyles.pillDisconnectText}>
-            Tap to disconnect
-          </Text>
-        </TouchableOpacity>
       </View>
     );
-  }
+  };
 
   if (!hasPermission) {
     return (
       <View style={phoneScreenStyles.container}>
         <Text style={phoneScreenStyles.title}>Bluetooth Permissions Required</Text>
         <Text style={phoneScreenStyles.description}>
-          This app needs Bluetooth permissions to scan for nearby devices.
+          This app needs Bluetooth permissions to check for paired devices.
         </Text>
         <TouchableOpacity style={phoneScreenStyles.button} onPress={requestBluetoothPermissions}>
           <Text style={phoneScreenStyles.buttonText}>Grant Bluetooth Permissions</Text>
@@ -97,9 +63,6 @@ export default function BluetoothScanner() {
       <View style={phoneScreenStyles.container}>
         <Text style={phoneScreenStyles.title}>Bluetooth Error</Text>
         <Text style={phoneScreenStyles.errorText}>{error}</Text>
-        <TouchableOpacity style={phoneScreenStyles.button} onPress={handleRetry}>
-          <Text style={phoneScreenStyles.buttonText}>Retry</Text>
-        </TouchableOpacity>
       </View>
     );
   }
@@ -107,21 +70,31 @@ export default function BluetoothScanner() {
   return (
     <View style={phoneScreenStyles.container}>
       <Text style={phoneScreenStyles.title}>
-        {isScanning ? 'Scanning for devices...' : 'Nearby Bluetooth Devices'}
+        Bluetooth Devices
       </Text>
       <Text style={phoneScreenStyles.subtitle}>
-        Tap on a device to connect or disconnect
+        {devices.length > 0 ? `${devices.length} device(s) found` : 'No devices found'}
       </Text>
-      <FlatList
-        data={devices}
-        keyExtractor={(item) => item.id}
-        renderItem={renderDeviceItem}
-        ListEmptyComponent={
-          <Text style={phoneScreenStyles.emptyText}>
-            {isScanning ? 'Searching for devices...' : 'No devices found'}
+      
+      {devices.length > 0 && (
+        <View style={phoneScreenStyles.devicesContainer}>
+          <Text style={phoneScreenStyles.devicesSectionTitle}>
+            Available Devices
           </Text>
-        }
-      />
+          <FlatList
+            data={devices}
+            keyExtractor={(item) => item.id}
+            renderItem={renderDeviceItem}
+            scrollEnabled={false}
+          />
+        </View>
+      )}
+      
+      {devices.length === 0 && (
+        <Text style={phoneScreenStyles.emptyText}>
+          No devices found. Make sure your ESP32 is powered on and advertising.
+        </Text>
+      )}
     </View>
   );
 } 

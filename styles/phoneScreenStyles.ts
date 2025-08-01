@@ -64,11 +64,6 @@ export const phoneScreenStyles = StyleSheet.create({
     borderLeftWidth: 4,
     borderLeftColor: '#4CAF50',
   },
-  connectingDevice: {
-    backgroundColor: '#FFF8E1',
-    borderLeftWidth: 4,
-    borderLeftColor: '#FFA500',
-  },
   deviceInfo: {
     flex: 1,
   },
@@ -94,45 +89,17 @@ export const phoneScreenStyles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
   },
-  loadingIndicator: {
-    marginBottom: 4,
-  },
   emptyText: {
     textAlign: 'center',
     color: '#666',
     marginTop: 50,
   },
-  // Connected device pill styles
-  connectedPill: {
-    position: 'absolute',
-    top: 50,
-    left: 20,
-    right: 20,
-    backgroundColor: '#4CAF50',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-    zIndex: 1000,
+  devicesContainer: {
+    marginBottom: 20,
   },
-  pillText: {
-    color: 'white',
-    fontSize: 14,
+  devicesSectionTitle: {
+    fontSize: 16,
     fontWeight: '600',
-  },
-  pillDisconnectText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: '500',
+    marginBottom: 10,
   },
 }); 
