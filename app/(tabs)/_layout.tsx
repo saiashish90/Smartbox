@@ -5,7 +5,7 @@ export default function TabLayout() {
 
   return (
     <Tabs>
-      <Tabs.Screen name="phone" />
+      <Tabs.Screen name="index" />
       <Tabs.Screen name="standalone" />
     </Tabs>
 

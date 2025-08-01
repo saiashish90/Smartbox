@@ -6,54 +6,57 @@ export const useBluetoothPermission = () => {
 
   const checkPermission = async () => {
     if (Platform.OS === 'android') {
-      const granted = await PermissionsAndroid.check(
-        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION
-      );
-      setHasPermission(granted);
+      try {
+        // Check location permission (required for Bluetooth scanning)
+        const locationGranted = await PermissionsAndroid.check(
+          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION
+        );
+
+        // Check Bluetooth permissions for Android 12+ (API 31+)
+        let bluetoothScanGranted = true;
+        let bluetoothConnectGranted = true;
+
+        if (Platform.Version >= 31) {
+          bluetoothScanGranted = await PermissionsAndroid.check(
+            PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN
+          );
+          bluetoothConnectGranted = await PermissionsAndroid.check(
+            PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT
+          );
+        }
+
+        const allPermissionsGranted = locationGranted && bluetoothScanGranted && bluetoothConnectGranted;
+        setHasPermission(allPermissionsGranted);
+      } catch (error) {
+        setHasPermission(false);
+      }
     }
   };
 
   const requestBluetoothPermissions = async () => {
     if (Platform.OS === 'android') {
-      // Check current permission first
-      const currentPermission = await PermissionsAndroid.check(
-        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION
-      );
-      
-      if (currentPermission) {
-        setHasPermission(true);
-        return;
-      }
-      
-      // Add timeout to prevent hanging
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Permission request timeout')), 5000);
-      });
-      
       try {
-        const granted = await Promise.race([
-          PermissionsAndroid.request(
-            PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION
-          ),
-          timeoutPromise
-        ]);
-        
-        // Set permission based on the result directly
-        if (granted === PermissionsAndroid.RESULTS.GRANTED) {
-          setHasPermission(true);
-        } else {
-          setHasPermission(false);
-        }
-      } catch (error) {
-        // If it times out, try to check current permission again
-        try {
-          const newPermission = await PermissionsAndroid.check(
-            PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION
+        const permissionsToRequest = [
+          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION
+        ];
+
+        // Add Bluetooth permissions for Android 12+ (API 31+)
+        if (Platform.Version >= 31) {
+          permissionsToRequest.push(
+            PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
+            PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT
           );
-          setHasPermission(newPermission);
-        } catch (checkError) {
-          // Handle check error if needed
         }
+
+        const results = await PermissionsAndroid.requestMultiple(permissionsToRequest);
+        
+        const allGranted = Object.values(results).every(
+          result => result === PermissionsAndroid.RESULTS.GRANTED
+        );
+
+        setHasPermission(allGranted);
+      } catch (error) {
+        await checkPermission();
       }
     }
   };
