@@ -1,14 +1,58 @@
 import React from 'react';
-import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useBluetoothDevices } from '../../hooks/useBluetoothDevices';
 import { useBluetoothPermission } from '../../hooks/useBluetoothPermission';
 
 export default function PhoneScreen() {
   const { hasPermission, requestBluetoothPermissions } = useBluetoothPermission();
-  const { devices, isScanning, error, startScan } = useBluetoothDevices(hasPermission);
+  const { devices, isScanning, error, startScan, handleDevicePress } = useBluetoothDevices(hasPermission);
 
   const handleRetry = () => {
     startScan();
+  };
+
+  const renderDeviceItem = ({ item }: { item: any }) => {
+    const getStatusText = () => {
+      if (item.isConnecting) return 'Connecting...';
+      if (item.isConnected) return 'Connected';
+      return 'Tap to connect';
+    };
+
+    const getStatusColor = () => {
+      if (item.isConnecting) return '#FFA500'; // Orange
+      if (item.isConnected) return '#4CAF50'; // Green
+      return '#666'; // Gray
+    };
+
+    return (
+      <TouchableOpacity 
+        style={[
+          styles.deviceItem,
+          item.isConnected && styles.connectedDevice,
+          item.isConnecting && styles.connectingDevice
+        ]}
+        onPress={() => handleDevicePress(item.id)}
+        disabled={item.isConnecting}
+      >
+        <View style={styles.deviceInfo}>
+          <Text style={styles.deviceName}>
+            {item.name || 'Unknown Device'}
+          </Text>
+          <Text style={styles.deviceId}>{item.id}</Text>
+          {item.rssi && (
+            <Text style={styles.deviceRssi}>Signal: {item.rssi} dBm</Text>
+          )}
+        </View>
+        <View style={styles.deviceStatus}>
+          {item.isConnecting && (
+            <ActivityIndicator size="small" color="#FFA500" style={styles.loadingIndicator} />
+          )}
+          <Text style={[styles.statusText, { color: getStatusColor() }]}>
+            {getStatusText()}
+          </Text>
+        </View>
+      </TouchableOpacity>
+    );
   };
 
   if (!hasPermission) {
@@ -42,20 +86,13 @@ export default function PhoneScreen() {
       <Text style={styles.title}>
         {isScanning ? 'Scanning for devices...' : 'Nearby Bluetooth Devices'}
       </Text>
+      <Text style={styles.subtitle}>
+        Tap on a device to connect or disconnect
+      </Text>
       <FlatList
         data={devices}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <View style={styles.deviceItem}>
-            <Text style={styles.deviceName}>
-              {item.name || 'Unknown Device'}
-            </Text>
-            <Text style={styles.deviceId}>{item.id}</Text>
-            {item.rssi && (
-              <Text style={styles.deviceRssi}>Signal: {item.rssi} dBm</Text>
-            )}
-          </View>
-        )}
+        renderItem={renderDeviceItem}
         ListEmptyComponent={
           <Text style={styles.emptyText}>
             {isScanning ? 'Searching for devices...' : 'No devices found'}
@@ -74,6 +111,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: 'bold',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  subtitle: {
+    fontSize: 14,
+    color: '#666',
     marginBottom: 20,
     textAlign: 'center',
   },
@@ -104,6 +147,33 @@ const styles = StyleSheet.create({
     padding: 15,
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: 'white',
+    marginBottom: 5,
+    borderRadius: 8,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  connectedDevice: {
+    backgroundColor: '#E8F5E8',
+    borderLeftWidth: 4,
+    borderLeftColor: '#4CAF50',
+  },
+  connectingDevice: {
+    backgroundColor: '#FFF8E1',
+    borderLeftWidth: 4,
+    borderLeftColor: '#FFA500',
+  },
+  deviceInfo: {
+    flex: 1,
   },
   deviceName: {
     fontSize: 16,
@@ -118,6 +188,17 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#999',
     marginTop: 2,
+  },
+  deviceStatus: {
+    alignItems: 'flex-end',
+    minWidth: 80,
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  loadingIndicator: {
+    marginBottom: 4,
   },
   emptyText: {
     textAlign: 'center',
