@@ -1,89 +1,92 @@
-import React, { useState } from 'react';
-import { Alert, FlatList, Text, TouchableOpacity, View } from 'react-native';
-import { BleManager } from 'react-native-ble-plx';
+import React from 'react';
+import { FlatList, Text, TouchableOpacity, View } from 'react-native';
 import { useBluetoothDevices } from '../hooks/useBluetoothDevices';
 import { useBluetoothPermission } from '../hooks/useBluetoothPermission';
 import { phoneScreenStyles } from '../styles/phoneScreenStyles';
 
-export default function BluetoothScanner() {
+interface GPSData {
+  type: string;
+  latitude: number;
+  longitude: number;
+  altitude: number;
+  speed: number;
+  course: number;
+  satellites: number;
+  date: string;
+  time: string;
+  timestamp: number;
+}
+
+interface BluetoothScannerProps {
+  connectedDevice: any;
+  isConnecting: boolean;
+  gpsData: GPSData | null;
+  connectToDevice: (device: any) => Promise<void>;
+  disconnectFromDevice: () => Promise<void>;
+}
+
+export default function BluetoothScanner({
+  connectedDevice,
+  isConnecting,
+  gpsData,
+  connectToDevice,
+  disconnectFromDevice,
+}: BluetoothScannerProps) {
   const { hasPermission, requestBluetoothPermissions } = useBluetoothPermission();
   const { devices, error, isScanning, refreshDevices } = useBluetoothDevices(hasPermission);
-  const [connectedDevice, setConnectedDevice] = useState<any>(null);
-  const [isConnecting, setIsConnecting] = useState(false);
-  const [bleManager] = useState(() => new BleManager());
 
-  const connectToDevice = async (device: any) => {
-    try {
-      setIsConnecting(true);
-      console.log('Attempting to connect to device:', device.id);
-      
-      // Connect to the device
-      const connectedDevice = await bleManager.connectToDevice(device.id, {
-        requestMTU: 512,
-        timeout: 10000,
-      });
-      
-      console.log('Connected to device:', connectedDevice.id);
-      
-      // Discover services
-      await connectedDevice.discoverAllServicesAndCharacteristics();
-      console.log('Services discovered');
-      
-      // Find the specific service and characteristic
-      const services = await connectedDevice.services();
-      const targetService = services.find(service => 
-        service.uuid.toLowerCase() === '4fafc201-1fb5-459e-8fcc-c5c9c331914b'
+  const renderGPSInfo = () => {
+    if (!gpsData) {
+      return (
+        <View style={phoneScreenStyles.gpsCard}>
+          <Text style={phoneScreenStyles.gpsCardTitle}>GPS Information</Text>
+          <Text style={phoneScreenStyles.gpsCardSubtitle}>Waiting for GPS data...</Text>
+        </View>
       );
-      
-      if (!targetService) {
-        throw new Error('Target service not found');
-      }
-      
-      const characteristics = await targetService.characteristics();
-      const targetCharacteristic = characteristics.find(char => 
-        char.uuid.toLowerCase() === 'beb5483e-36e1-4688-b7f5-ea07361b26a8'
-      );
-      
-      if (!targetCharacteristic) {
-        throw new Error('Target characteristic not found');
-      }
-      
-      // Subscribe to notifications
-      await targetCharacteristic.monitor((error, characteristic) => {
-        if (error) {
-          console.log('Notification error:', error);
-          return;
-        }
+    }
+
+    return (
+      <View style={phoneScreenStyles.gpsCard}>
+        <Text style={phoneScreenStyles.gpsCardTitle}>GPS Information</Text>
         
-        if (characteristic && characteristic.value) {
-          const data = characteristic.value;
-          const decodedData = atob(data);
-          console.log('Received data:', decodedData);
-          Alert.alert('Data Received', decodedData);
-        }
-      });
-      
-      setConnectedDevice(connectedDevice);
-      Alert.alert('Success', 'Connected to SmartBox! You should now receive time data.');
-      
-    } catch (error) {
-      console.log('Connection error:', error);
-      Alert.alert('Connection Failed', 'Could not connect to device. Please try again.');
-    } finally {
-      setIsConnecting(false);
-    }
-  };
-
-  const disconnectFromDevice = async () => {
-    if (connectedDevice) {
-      try {
-        await connectedDevice.cancelConnection();
-        setConnectedDevice(null);
-        Alert.alert('Disconnected', 'Disconnected from SmartBox');
-      } catch (error) {
-        console.log('Disconnect error:', error);
-      }
-    }
+        <View style={phoneScreenStyles.gpsDataRow}>
+          <Text style={phoneScreenStyles.gpsLabel}>Location:</Text>
+          <Text style={phoneScreenStyles.gpsValue}>
+            {gpsData.latitude.toFixed(6)}, {gpsData.longitude.toFixed(6)}
+          </Text>
+        </View>
+        
+        <View style={phoneScreenStyles.gpsDataRow}>
+          <Text style={phoneScreenStyles.gpsLabel}>Altitude:</Text>
+          <Text style={phoneScreenStyles.gpsValue}>{gpsData.altitude.toFixed(1)} m</Text>
+        </View>
+        
+        <View style={phoneScreenStyles.gpsDataRow}>
+          <Text style={phoneScreenStyles.gpsLabel}>Speed:</Text>
+          <Text style={phoneScreenStyles.gpsValue}>{gpsData.speed.toFixed(1)} m/s</Text>
+        </View>
+        
+        <View style={phoneScreenStyles.gpsDataRow}>
+          <Text style={phoneScreenStyles.gpsLabel}>Course:</Text>
+          <Text style={phoneScreenStyles.gpsValue}>{gpsData.course.toFixed(1)}°</Text>
+        </View>
+        
+        <View style={phoneScreenStyles.gpsDataRow}>
+          <Text style={phoneScreenStyles.gpsLabel}>Satellites:</Text>
+          <Text style={phoneScreenStyles.gpsValue}>{gpsData.satellites}</Text>
+        </View>
+        
+        <View style={phoneScreenStyles.gpsDataRow}>
+          <Text style={phoneScreenStyles.gpsLabel}>Date:</Text>
+          <Text style={phoneScreenStyles.gpsValue}>{gpsData.date}</Text>
+        </View>
+        
+        <View style={phoneScreenStyles.gpsDataRow}>
+          <Text style={phoneScreenStyles.gpsLabel}>Time:</Text>
+          <Text style={phoneScreenStyles.gpsValue}>{gpsData.time}</Text>
+        </View>
+      </View>
+    );
   };
 
   const renderDeviceItem = ({ item }: { item: any }) => {
@@ -166,20 +169,33 @@ export default function BluetoothScanner() {
     );
   }
 
+  // If connected to a device, show only that device as a pill at the top
+  if (connectedDevice) {
+    const connectedDeviceData = devices.find(device => device.id === connectedDevice.id);
+    
+    return (
+      <View style={phoneScreenStyles.container}>
+        {/* Connected Device Pill */}
+        <TouchableOpacity 
+          style={phoneScreenStyles.connectedDevicePill}
+          onPress={disconnectFromDevice}
+        >
+          <Text style={phoneScreenStyles.pillDeviceName}>
+            {connectedDeviceData?.name || 'SmartBox'}
+          </Text>
+        </TouchableOpacity>
+        
+        {/* GPS Information Card */}
+        {renderGPSInfo()}
+      </View>
+    );
+  }
+
+  // Show device list when not connected
   return (
     <View style={phoneScreenStyles.container}>
-      <Text style={phoneScreenStyles.title}>
-        Bluetooth Devices
-      </Text>
-      <Text style={phoneScreenStyles.subtitle}>
-        {devices.length > 0 ? `${devices.length} device(s) found` : 'No devices found'}
-      </Text>
-      
       {devices.length > 0 && (
         <View style={phoneScreenStyles.devicesContainer}>
-          <Text style={phoneScreenStyles.devicesSectionTitle}>
-            Available Devices
-          </Text>
           <FlatList
             data={devices}
             keyExtractor={(item) => item.id}
