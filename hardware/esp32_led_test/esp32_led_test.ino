@@ -263,8 +263,9 @@ void setup() {
     // Start advertising
     BLEAdvertising* pAdvertising = BLEDevice::getAdvertising();
     pAdvertising->addServiceUUID(RACECHRONO_SERVICE_UUID);
-    pAdvertising->setScanResponse(false);
-    pAdvertising->setMinPreferred(0x0);  // set value to 0x00 to not advertise this parameter
+    pAdvertising->setScanResponse(true);  // Enable scan response for better discovery
+    pAdvertising->setMinPreferred(0x06);  // Set minimum preferred interval
+    pAdvertising->setMaxPreferred(0x12);  // Set maximum preferred interval
     BLEDevice::startAdvertising();
     
     Serial.println("BLE Device started and advertising");

@@ -7,6 +7,7 @@ export interface TrackPoint {
   speed: number;
   course: number;
   satellites: number;
+  accuracy: number;
   date: string;
   time: string;
   timestamp: number;
@@ -20,6 +21,7 @@ export interface GPSData {
   speed: number;
   course: number;
   satellites: number;
+  accuracy: number;
   date: string;
   time: string;
   timestamp: number;
@@ -71,6 +73,7 @@ export const useGPSTracking = () => {
         speed: gpsData.speed || 0,
         course: gpsData.course || 0,
         satellites: gpsData.satellites || 0,
+        accuracy: gpsData.accuracy || 0,
         date: gpsData.date || new Date().toISOString().split('T')[0],
         time: gpsData.time || new Date().toISOString().split('T')[1].split('.')[0],
         timestamp: gpsData.timestamp || Date.now(),

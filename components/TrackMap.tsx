@@ -29,7 +29,7 @@ export default function TrackMap({
           latitudeDelta: 0.01,
           longitudeDelta: 0.01,
         });
-      } catch (error) {
+      } catch {
         // Silently handle animation errors
       }
     }
@@ -73,7 +73,7 @@ export default function TrackMap({
     }));
   };
 
-  const handleMapError = (error: any) => {
+  const handleMapError = (_error: any) => {
     if (useGoogleProvider && Platform.OS === 'android') {
       setUseGoogleProvider(false);
       setMapError(null);
@@ -131,8 +131,7 @@ export default function TrackMap({
           showsCompass={true}
           showsScale={true}
           initialRegion={getMapRegion()}
-          onError={handleMapError}
-          onLoad={handleMapLoad}
+          onMapReady={handleMapLoad}
           loadingEnabled={true}
           loadingIndicatorColor="#666666"
           loadingBackgroundColor="#ffffff"

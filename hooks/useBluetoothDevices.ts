@@ -7,19 +7,22 @@ interface BluetoothDevice {
   rssi: number | null;
 }
 
-const TARGET_SERVICE_UUID = '4fafc201-1fb5-459e-8fcc-c5c9c331914b';
-
 export const useBluetoothDevices = (hasPermission: boolean) => {
   const [devices, setDevices] = useState<BluetoothDevice[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [bleManager] = useState(() => new BleManager());
+  const [allDiscoveredDevices, setAllDiscoveredDevices] = useState<BluetoothDevice[]>([]);
+
+  // Target service UUID to filter devices
+  const TARGET_SERVICE_UUID = "00001ff8-0000-1000-8000-00805f9b34fb";
 
   const startScan = async () => {
     try {
       setIsScanning(true);
       setError(null);
       setDevices([]);
+      setAllDiscoveredDevices([]);
 
       const state = await bleManager.state();
       if (state !== 'PoweredOn') {
@@ -27,8 +30,8 @@ export const useBluetoothDevices = (hasPermission: boolean) => {
         return;
       }
 
-      // Start scanning for devices with the specific service UUID
-      bleManager.startDeviceScan([TARGET_SERVICE_UUID], null, (error, device) => {
+      // Start scanning for all devices, then filter by service UUID
+      bleManager.startDeviceScan(null, null, (error, device) => {
         if (error) {
           console.log('Scan error:', error);
           setError('Failed to scan for devices');
@@ -36,8 +39,22 @@ export const useBluetoothDevices = (hasPermission: boolean) => {
         }
 
         if (device) {
-          // Additional check to ensure the device has the target service
-          const hasTargetService = device.serviceUUIDs?.includes(TARGET_SERVICE_UUID);
+          // Store all discovered devices for debugging
+          setAllDiscoveredDevices(prev => {
+            const exists = prev.find(d => d.id === device.id);
+            if (exists) return prev;
+            
+            return [...prev, {
+              id: device.id,
+              name: device.name,
+              rssi: device.rssi
+            }];
+          });
+
+          // Check if device has the target service in its advertised services
+          const hasTargetService = device.serviceUUIDs?.some(uuid => 
+            uuid.toLowerCase() === TARGET_SERVICE_UUID.toLowerCase()
+          );
           
           if (hasTargetService) {
             setDevices(prev => {
@@ -59,6 +76,12 @@ export const useBluetoothDevices = (hasPermission: boolean) => {
       setTimeout(() => {
         bleManager.stopDeviceScan();
         setIsScanning(false);
+        
+        // If no filtered devices found, show all devices as fallback
+        if (devices.length === 0 && allDiscoveredDevices.length > 0) {
+          console.log('No devices with target service found. Showing all devices as fallback.');
+          setDevices(allDiscoveredDevices);
+        }
       }, 10000);
 
     } catch (error) {
